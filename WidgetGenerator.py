@@ -31,7 +31,7 @@ except:
 
 
 widget.modify()
-
+# TODO: Set Widget Parent Class
 tree = widget.WidgetTree
 
 tree.AllWidgets.clear()

@@ -1,3 +1,5 @@
+import inspect
+
 current_indent = 0
 INDENT_SIZE = 2
 
@@ -20,10 +22,14 @@ def header(data):
     log(f"> {data}")
     indent()
 
+def debug_members(obj):
+    for x, _ in inspect.getmembers(obj):
+        log(x)
+
 def debug_object_properties(obj):
-    print(obj)
+    log(obj)
     for prop in obj.properties():
-        print(f"{prop} = {getattr(obj, prop)}")
+        log(f"{prop} = {getattr(obj, prop)}")
 
 def debug_widget(obj):
     if obj is None: return
@@ -47,3 +53,4 @@ def debug_widget(obj):
             debug_widget(s)
 
     undent()
+    

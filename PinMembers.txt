@@ -1,0 +1,12 @@
+break_all_pin_links
+break_link_to
+category
+connect
+default_object
+default_text_value
+default_value
+direction
+get_linked_to
+make_link_to
+name
+sub_category
