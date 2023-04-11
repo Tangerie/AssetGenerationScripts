@@ -216,10 +216,10 @@ begin_transaction
     blueprint_add_event_dispatcher
     blueprint_add_function
     blueprint_add_member_variable
-blueprint_add_new_timeline
+    blueprint_add_new_timeline
     blueprint_add_ubergraph_page
     blueprint_get_all_graphs
-blueprint_mark_as_structurally_modified
+    blueprint_mark_as_structurally_modified
     blueprint_set_variable_visibility
 cancel_transaction
 clipboard_copy

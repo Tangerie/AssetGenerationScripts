@@ -1,6 +1,6 @@
 import unreal_engine as ue
 from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
-from unreal_engine.structs import EdGraphPinType
+from unreal_engine.structs import EdGraphPinType, BPVariableDescription
 from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
 
 from enum import IntFlag
@@ -108,6 +108,12 @@ def get_function_return(func):
         if node.get_class() == K2Node_FunctionResult:
             return node
 
+def find_object(name):
+    try:
+        return ue.find_object(name)
+    except:
+        return None
+
 
 '''
 PinCategory
@@ -127,19 +133,23 @@ def create_pin_type(props):
     # TODO
     # - Const
     # - Maps/Sets
-
+    
     if props["Type"] == "ArrayProperty":
         props = props["Inner"]
         kwargs["ContainerType"] = EPinContainerType.Array
 
     if props["Type"] == "ObjectProperty":
         kwargs["PinCategory"] = "object"
-        kwargs["PinSubCategoryObject"] = ue.find_object(props["PropertyClass"]["ObjectName"])
+        kwargs["PinSubCategoryObject"] = find_object(props["PropertyClass"]["ObjectName"])
     elif props["Type"] == "BoolProperty":
         kwargs["PinCategory"] = "bool"
+    elif props["Type"] == "FloatProperty":
+        kwargs["PinCategory"] = "float"
+    elif props["Type"] == "NameProperty":
+        kwargs["PinCategory"] = "name"
     elif props["Type"] == "StructProperty":
         kwargs["PinCategory"] = "struct"
-        kwargs["PinSubCategoryObject"] = ue.find_object(props["Struct"]["ObjectName"])
+        kwargs["PinSubCategoryObject"] = find_object(props["Struct"]["ObjectName"])
     else:
         print(props)
 
@@ -174,8 +184,8 @@ class BPGenerator():
         for node in self.bp.UberGraphPages[0].Nodes:
             self.bp.UberGraphPages[0].graph_remove_node(node)
 
-
         # TODO Clear variables
+        self.bp.NewVariables = []
 
     def compile(self):
         ue.blueprint_mark_as_structurally_modified(self.bp)
@@ -215,6 +225,12 @@ class BPGenerator():
                 for pin in node.node_pins():
                     LoggingUtil.log(f"- [{get_pin_type_str(pin)}] {pin.name}")
                 LoggingUtil.undent()
+            LoggingUtil.undent()
+        LoggingUtil.log("===")
+
+        LoggingUtil.log("=== Blueprint Variables ===")
+        for varInfo in self.bp.NewVariables:
+            LoggingUtil.header(f"{varInfo.VarName} [{varInfo.VarType.as_dict()}]")
             LoggingUtil.undent()
         LoggingUtil.log("===")
 
@@ -259,3 +275,8 @@ class BPGenerator():
                 )
 
         LoggingUtil.undent()
+
+    def add_variable(self, var):
+        if var["Name"] == "UberGraphFrame": return
+        varType = create_pin_type(var)
+        ue.blueprint_add_member_variable(self.bp, var["Name"], varType)

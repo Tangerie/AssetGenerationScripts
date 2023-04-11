@@ -14,6 +14,7 @@ import Generators.BP as BPGenerator
 importlib.reload(BPGenerator)
 
 import unreal_engine as ue
+from unreal_engine.structs import EdGraphPinType
 
 LoggingUtil.reset()
 
@@ -44,7 +45,10 @@ for node in nodes:
     else:
         bp.add_function(node)
 
-bp.compile()
+for v in root["ChildProperties"]:
+    bp.add_variable(v)
 
+
+bp.compile()
 LoggingUtil.reset()
 bp.debug()
