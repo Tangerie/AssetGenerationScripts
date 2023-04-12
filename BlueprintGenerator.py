@@ -14,7 +14,6 @@ import Generators.BP as BPGenerator
 importlib.reload(BPGenerator)
 
 import unreal_engine as ue
-from unreal_engine.structs import EdGraphPinType
 
 LoggingUtil.reset()
 

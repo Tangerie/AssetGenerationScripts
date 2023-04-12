@@ -131,27 +131,20 @@ def create_pin_type(props):
     kwargs = {}
 
     # TODO
-    # - Const
     # - Maps/Sets
-    
+    # - Enums
+
     if props["Type"] == "ArrayProperty":
         props = props["Inner"]
         kwargs["ContainerType"] = EPinContainerType.Array
 
+    if props["Type"].endswith("Property"):
+        kwargs["PinCategory"] = props["Type"][:-len("Property")].lower()
+
     if props["Type"] == "ObjectProperty":
-        kwargs["PinCategory"] = "object"
         kwargs["PinSubCategoryObject"] = find_object(props["PropertyClass"]["ObjectName"])
-    elif props["Type"] == "BoolProperty":
-        kwargs["PinCategory"] = "bool"
-    elif props["Type"] == "FloatProperty":
-        kwargs["PinCategory"] = "float"
-    elif props["Type"] == "NameProperty":
-        kwargs["PinCategory"] = "name"
     elif props["Type"] == "StructProperty":
-        kwargs["PinCategory"] = "struct"
         kwargs["PinSubCategoryObject"] = find_object(props["Struct"]["ObjectName"])
-    else:
-        print(props)
 
     return EdGraphPinType(**kwargs)
 
