@@ -1,6 +1,6 @@
 import unreal_engine as ue
 from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
-from unreal_engine.structs import EdGraphPinType, BPVariableDescription
+from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType
 from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
 
 from enum import IntFlag
@@ -115,36 +115,50 @@ def find_object(name):
         return None
 
 
-'''
-PinCategory
-PinSubCategory
-PinSubCategoryObject
-PinSubCategoryMemberReference
-PinValueType                    => Map Value Type
-ContainerType
-bIsReference
-bIsConst
-bIsWeakPointer
-bIsUObjectWrapper
-'''
-def create_pin_type(props):
+def resolve_property_type(props):
     kwargs = {}
 
-    # TODO
-    # - Maps/Sets
-    # - Enums
+    if props["Type"].endswith("Property"):
+        kwargs["Type"] = props["Type"][:-len("Property")].lower()
+
+    if props["Type"] == "ObjectProperty":
+        kwargs["Ref"] = find_object(props["PropertyClass"]["ObjectName"])
+    elif props["Type"] == "StructProperty":
+        kwargs["Ref"] = find_object(props["Struct"]["ObjectName"])
+    elif props["Type"] == "ByteProperty" and "Enum" in props:
+        kwargs["Ref"] = find_object(props["Enum"]["ObjectName"])
+
+    return kwargs
+
+def create_pin_type(props):
+    kwargs = {}
 
     if props["Type"] == "ArrayProperty":
         props = props["Inner"]
         kwargs["ContainerType"] = EPinContainerType.Array
+    elif props["Type"] == "MapProperty":
+        kwargs["ContainerType"] = EPinContainerType.Map
+        valueRes = resolve_property_type(props["ValueProp"])
 
-    if props["Type"].endswith("Property"):
-        kwargs["PinCategory"] = props["Type"][:-len("Property")].lower()
+        valueKwargs = {
+            "TerminalCategory": valueRes["Type"]
+        }
 
-    if props["Type"] == "ObjectProperty":
-        kwargs["PinSubCategoryObject"] = find_object(props["PropertyClass"]["ObjectName"])
-    elif props["Type"] == "StructProperty":
-        kwargs["PinSubCategoryObject"] = find_object(props["Struct"]["ObjectName"])
+        if "Ref" in valueRes:
+            valueKwargs["TerminalSubCategoryObject"] = valueRes["Ref"]
+
+        kwargs["PinValueType"] = EdGraphTerminalType(**valueKwargs)
+
+        props = props["KeyProp"]
+    elif props["Type"] == "SetProperty":
+        props = props["ElementProp"]
+        kwargs["ContainerType"] = EPinContainerType.Set
+
+    res = resolve_property_type(props)
+    kwargs["PinCategory"] = res["Type"]
+
+    if "Ref" in res:
+        kwargs["PinSubCategoryObject"] = res["Ref"]
 
     return EdGraphPinType(**kwargs)
 
@@ -177,8 +191,7 @@ class BPGenerator():
         for node in self.bp.UberGraphPages[0].Nodes:
             self.bp.UberGraphPages[0].graph_remove_node(node)
 
-        # TODO Clear variables
-        self.bp.NewVariables = []
+        # self.bp.NewVariables = []
 
     def compile(self):
         ue.blueprint_mark_as_structurally_modified(self.bp)
@@ -269,7 +282,14 @@ class BPGenerator():
 
         LoggingUtil.undent()
 
-    def add_variable(self, var):
-        if var["Name"] == "UberGraphFrame": return
-        varType = create_pin_type(var)
-        ue.blueprint_add_member_variable(self.bp, var["Name"], varType)
+    def add_vars(self, variables):
+        newVars = []
+        for var in variables:
+            if var["Name"] == "UberGraphFrame": continue
+            varType = create_pin_type(var)
+            newVars.append(BPVariableDescription(
+                VarName=var["Name"],
+                VarType=varType,
+                PropertyFlags=PropertyFlags(var.get("PropertyFlags", 0))
+            ))
+        self.bp.NewVariables = newVars 

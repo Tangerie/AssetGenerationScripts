@@ -14,10 +14,12 @@ import Generators.BP as BPGenerator
 importlib.reload(BPGenerator)
 
 import unreal_engine as ue
-
 LoggingUtil.reset()
 
-with open(r"F:\FModel\Output\Exports\Phoenix\Content\Gameplay\ToolSet\Items\Wand\BP_WandTool.json") as fp:
+# JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\Gameplay\ToolSet\Items\Wand\BP_WandTool.json"
+JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\CustomContent\TestActor.json"
+
+with open(JSON_PATH, "r+") as fp:
     nodes = json.load(fp)
 
 
@@ -44,9 +46,7 @@ for node in nodes:
     else:
         bp.add_function(node)
 
-for v in root["ChildProperties"]:
-    bp.add_variable(v)
-
+bp.add_vars(root["ChildProperties"])
 
 bp.compile()
 LoggingUtil.reset()
