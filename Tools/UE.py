@@ -1,3 +1,4 @@
+from typing import Any, Callable, Dict, Tuple
 import unreal_engine as ue
 from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
 from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType
@@ -5,6 +6,7 @@ from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
 
 from enum import IntFlag
 import json
+import LoggingUtil
 
 class PropertyFlags(IntFlag):
     CPF_None                              = 0x0,
@@ -103,8 +105,151 @@ class FunctionFlags(IntFlag):
 # print(fprop.get_inner().convert())
 # print(fprop.get_type_str())
 
-def set_struct_from_dict(struct, data):
-    pass
+
+'''
+=== ALL TYPE STRINGS ===
+[X] BoolProperty
+[X] IntProperty
+[X] UInt32Property
+[X] Int32Property
+[X] Int64Property
+[X] UInt64Property
+[X] FloatProperty
+[X] DoubleProperty
+[X] ByteProperty
+[ ] EnumProperty
+[X] StrProperty
+[X] TextProperty
+[X] NameProperty
+[X] ObjectProperty
+[ ] ClassProperty
+
+[X] FVector
+[X] FVector2D
+[X] FRotator
+[X] FTransform
+[X] FQuat
+[X] FColor
+[X] FLinearColor
+[X] FHitResult
+
+[X] UScriptStruct
+[ ] StructProperty
+
+[ ] WeakObjectProperty
+[ ] MulticastDelegateProperty
+[ ] DelegateProperty
+
+[ ] ArrayProperty
+[ ] MapProperty
+[ ] SetProperty
+'''
+
+# Types that are just set as their JSON value
+SIMPLE_TYPES = (
+    "BoolProperty",
+    "IntProperty",
+    "UInt32Property",
+    "Int32Property",
+    "UInt64Property",
+    "Int64Property",
+    "FloatProperty",
+    "DoubleProperty",
+    "StrProperty",
+    "NameProperty"
+)
+
+
+BASE_STRUCT_CONSTRUCTORS : Dict[str, Callable[[dict], tuple]] = {
+    "FVector": lambda v: (v["X"], v["Y"], v["Z"]),
+    "FVector2D": lambda v: (v["X"], v["Y"]),
+    "FRotator": lambda v: (v["Roll"], v["Pitch"], v["Yaw"]),
+    "FTransform": lambda v: (
+        create_base_struct("FVector", v["Translation"]),
+        create_base_struct("FQuat", v["Rotation"]),
+        create_base_struct("FVector", v["Scale3D"])
+    ),
+    "FQuat": lambda v: (v["X"], v["Y"], v["Z"], v["W"]),
+    "FColor": lambda v: (v["R"], v["G"], v["B"], v["A"]),
+    "FLinearColor": lambda v: (v["R"], v["G"], v["B"], v["A"]),
+    "FHitResult": lambda v: tuple() # No Init for FHitResult (Not editable in editor anyway)
+}
+
+def create_base_struct(structName, json_value):
+    if structName in BASE_STRUCT_CONSTRUCTORS:
+        args = BASE_STRUCT_CONSTRUCTORS[structName](json_value)
+        return getattr(ue, structName)(*args)
+
+def set_property(obj, key : str, json_value):
+    isStruct = isinstance(obj, ue.UScriptStruct)
+    if isStruct:
+        set_p = obj.set_field
+        get_p = obj.get_field
+    else:
+        set_p = obj.set_property
+        get_p = obj.get_property
+
+    fprop = obj.get_fproperty(key)
+    typeStr = fprop.get_type_str()
+    baseType = typeStr.split("<")[0]
+
+    LoggingUtil.header(f"{key} [{typeStr}]")
+
+    wasSet = True
+
+    if baseType in SIMPLE_TYPES:
+        set_p(key, json_value)
+    elif baseType in BASE_STRUCT_CONSTRUCTORS:
+        LoggingUtil.log("Is Base Struct")
+        v = create_base_struct(baseType, json_value)
+        if v is not None:
+            set_p(key, v)
+    elif baseType == "ByteProperty" and isinstance(json_value, int):
+        set_p(key, json_value)
+    elif baseType == "TextProperty":
+        # TODO Set localization property
+        if "CultureInvariantString" in json_value:
+            set_p(key, json_value["CultureInvariantString"])
+        else:
+            set_p(key, json_value["SourceString"])
+    elif baseType == "ObjectProperty":
+        if "ObjectName" in json_value:
+            set_p(
+                key,
+                find_object(json_value)
+            )
+        elif "AssetPathName" in json_value:
+            set_p(
+                key,
+                find_object(json_value["AssetPathName"])
+            )
+        else:
+            wasSet = False
+    elif baseType == "UScriptStruct":
+        struct = get_p(key)
+        # Recursively set properties
+        for field_name in struct.fields():
+            set_property(struct, field_name, json_value.get(field_name, None))
+    elif baseType == "EnumProperty":
+        if isinstance(json_value, str) and "::" in json_value:
+            enumClassName, enumValue = json_value.split("::")
+            enumClass = find_object(enumClassName)
+            if enumClass is None:
+                LoggingUtil.log("Failed to find enum")
+                wasSet = False
+            else:
+                index = enumClass.enum_names().index(enumValue)
+                set_p(key, index)
+        else:
+            LoggingUtil.log("Uknown Enum Value")
+            wasSet = False
+    else:
+        LoggingUtil.log("UNHANDELLED")
+        wasSet = False
+        
+    LoggingUtil.undent()
+    return wasSet
+
 
 def get_pin_type_str(pin):
     v = str(pin)[len("<unreal_engine.EdGraphPin "):-1]
@@ -132,12 +277,26 @@ def find_object(objRef):
     if name in OBJECT_CACHE:
         return OBJECT_CACHE[name]
 
+    obj = None
+
     try:
         obj = ue.find_object(name)
-        OBJECT_CACHE[name] = obj
-        return obj
     except:
+        pass
+
+    if obj is None:
+        try:
+            ue.load_object(name)
+            obj = ue.find_object(name)
+        except:
+            pass
+    
+    if obj is None:
+        LoggingUtil.log(f"Failed to find {name}")
         return None
+
+    OBJECT_CACHE[name] = obj
+    return obj
 
 def resolve_property_type(props):
     kwargs = {}

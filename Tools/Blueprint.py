@@ -212,14 +212,17 @@ class BPGenerator():
             self.path + ".Default__" + generated_class.get_name()
         )
 
-    def set_default_value(self, key, value):
-        if self.default_object is None: return
+    def set_default_value(self, key, json_value):
+        if self.default_object is None: return True
+        if key == "UberGraphFrame": return True
+        if key in self.components.keys(): return True
         if key not in self.default_object.properties():
-            print(f"ERROR: No matching key ({key}) in default")
-            return
-        if key == "UberGraphFrame": return
+            LoggingUtil.log(f"ERROR: No matching key ({key}) in default")
+            return True
+        # Components from parent
+        if isinstance(json_value, dict) and f"'Default__" in json_value.get("ObjectName", ""): return True
         
-        self.default_object.set_property(key, value)
+        return UETools.set_property(self.default_object, key, json_value)
 
     def save_defaults(self):
         if self.default_object is None: return
