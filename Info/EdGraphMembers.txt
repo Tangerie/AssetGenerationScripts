@@ -1,0 +1,8 @@
+Schema = <unreal_engine.UObject 'EdGraphSchema_K2' (0x000001F682CDC180) UClass 'Class' (refcnt: 3)>
+Nodes = [<unreal_engine.UObject object at 0x000001F6E1A3CA50>]
+bEditable = False
+bAllowDeletion = True
+bAllowRenaming = False
+SubGraphs = []
+GraphGuid = <unreal_engine.UScriptStruct {'struct': 'Guid', 'size': 16, 'ptr': 0x000001F7889273A0}>
+InterfaceGuid = <unreal_engine.UScriptStruct {'struct': 'Guid', 'size': 16, 'ptr': 0x000001F7889273B0}>

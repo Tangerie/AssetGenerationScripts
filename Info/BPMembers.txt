@@ -190,12 +190,12 @@ get_physics_linear_velocity
 get_player_camera_manager
 get_player_controller
 get_player_hud
-get_player_pawn
-get_property
-get_property_array_dim
-get_property_class
-get_property_flags
-get_property_struct
+get_player_pawn 
+    get_property
+    get_property_array_dim
+    get_property_class
+    get_property_flags
+    get_property_struct
 get_py_proxy
 get_raw_animation_data
 get_raw_animation_track
@@ -508,3 +508,6 @@ SkeletonGeneratedClass = <unreal_engine.UObject 'SKEL_BP_WandTool_C' (0x0000020D
 GeneratedClass = <unreal_engine.UObject 'BP_WandTool_C' (0x0000020DEB579600) UClass 'BlueprintGeneratedClass' (refcnt: 3)>
 bLegacyNeedToPurgeSkelRefs = False
 BlueprintGuid = <unreal_engine.UScriptStruct {'struct': 'Guid', 'size': 16, 'ptr': 0x0000020DEB57A444}>
+
+
+DelegateSignatureGraphs = [<unreal_engine.UObject object at 0x000001F6F566AE40>]

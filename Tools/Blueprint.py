@@ -6,6 +6,8 @@ from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
 from enum import IntFlag
 import json
 
+import Tools.UE as UETools
+
 import LoggingUtil
 
 class PropertyFlags(IntFlag):
@@ -127,6 +129,11 @@ def resolve_property_type(props):
         kwargs["Ref"] = find_object(props["Struct"]["ObjectName"])
     elif props["Type"] == "ByteProperty" and "Enum" in props:
         kwargs["Ref"] = find_object(props["Enum"]["ObjectName"])
+    elif props["Type"] == "EnumProperty":
+        kwargs["Type"] = "byte"
+        kwargs["Ref"] = find_object(props["Enum"]["ObjectName"])
+    elif props["Type"] == "StrProperty":
+        kwargs["Type"] = "String"
 
     return kwargs
 
@@ -168,13 +175,18 @@ def get_event_nodes(graph):
 class BPGenerator():
     path = ""
     bp : Blueprint = None
+    default_object = None
 
     def __init__(self, path : str):
+        self.path = path
         try:
             self.bp = ue.load_object(Blueprint, path)
         except:
             self.bp = BlueprintFactory().factory_create_new(path)
 
+        self.modify()
+
+    def modify(self):
         self.bp.modify()
 
     def clear(self):
@@ -182,6 +194,8 @@ class BPGenerator():
         self.bp.FunctionGraphs = [
             func for func in self.bp.FunctionGraphs if func.get_name() == "UserConstructionScript"
         ]
+
+        self.bp.DelegateSignatureGraphs = []
 
         # Clear EventGraph
         self.bp.UbergraphPages = [
@@ -191,7 +205,10 @@ class BPGenerator():
         for node in self.bp.UberGraphPages[0].Nodes:
             self.bp.UberGraphPages[0].graph_remove_node(node)
 
-        # self.bp.NewVariables = []
+        self.bp.NewVariables = []
+
+        self.compile()
+        self.modify()
 
     def compile(self):
         ue.blueprint_mark_as_structurally_modified(self.bp)
@@ -282,14 +299,51 @@ class BPGenerator():
 
         LoggingUtil.undent()
 
+    # An event delegate is just a function but in its own graph in "DelegateSignatureGraphs"
+    def add_event_delegate(self, node):
+        graph = ue.blueprint_add_event_dispatcher(self.bp, node["Name"][:-len("__DelegateSignature")])
+        root = graph.Nodes[0]
+        
+        root.FunctionFlags = FunctionFlags(node["FunctionFlags"])
+
+        for prop in node.get("ChildProperties", []):
+            flags = PropertyFlags(prop.get("PropertyFlags", 0))
+
+            if PropertyFlags.CPF_Parm in flags:
+                root.node_create_pin(EEdGraphPinDirection.EGPD_Input, create_pin_type(prop), prop["Name"])
+
     def add_vars(self, variables):
         newVars = []
         for var in variables:
-            if var["Name"] == "UberGraphFrame": continue
+            if var.get("Name") in ["DefaultSceneRoot", "UberGraphFrame"]: continue
+            if var.get("Type") in ["MulticastInlineDelegateProperty"]: continue
             varType = create_pin_type(var)
             newVars.append(BPVariableDescription(
                 VarName=var["Name"],
                 VarType=varType,
-                PropertyFlags=PropertyFlags(var.get("PropertyFlags", 0))
+                PropertyFlags=PropertyFlags(var.get("PropertyFlags", 0)),
+                ReplicationCondition=0,
+                DefaultValue="",
+                VarGuid=ue.new_guid()
             ))
         self.bp.NewVariables = newVars 
+
+    def load_defaults(self):
+        generated_class = self.bp.GeneratedClass
+        self.default_object = ue.load_object(
+            generated_class,
+            self.path + ".Default__" + generated_class.get_name()
+        )
+
+    def set_default_value(self, key, value):
+        if self.default_object is None: return
+        if key not in self.default_object.properties():
+            print(f"ERROR: No matching key ({key}) in default")
+            return
+        if key == "UberGraphFrame": return
+        
+        self.default_object.set_property(key, value)
+
+    def save_defaults(self):
+        if self.default_object is None: return
+        self.default_object.save_package()

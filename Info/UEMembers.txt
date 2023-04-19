@@ -201,7 +201,7 @@ __name__
 __package__
 __spec__
 add_asset_view_context_menu_extension
-add_component_to_blueprint
+    add_component_to_blueprint
 add_level_to_world
 add_menu_bar_extension
 add_menu_extension
