@@ -345,10 +345,7 @@ def get_function_return(func):
         if node.get_class() == K2Node_FunctionResult:
             return node
 
-OBJECT_CACHE = {}
-
 def find_object(objRef):
-    global OBJECT_CACHE
     obj = None
 
     if isinstance(objRef, dict):
@@ -356,37 +353,32 @@ def find_object(objRef):
             _basePath = objRef["ObjectPath"].split(".")[0]
             _assetName = objRef["ObjectName"].split("'")[1]
             _assetType = objRef["ObjectName"].split("'")[0]
+            _varName = None
+            if ":" in _assetName:
+                _assetName, _varName = _assetName.split(":")
             name = f"{_basePath}.{_assetName}"
             try:
-                ue.load_object(ue.find_class(_assetType), name)
+                tmp = ue.load_object(ue.find_class(_assetType), name)
+                if tmp is not None:
+                    if _varName is not None:
+                        return tmp.get_property(_varName)
+                    return tmp
             except:
-                pass
+                _assetName = objRef["ObjectName"].split("'")[1]
+                LoggingUtil.log(f"Failed to load {name}")
+                name = f"{_assetType}'{_basePath}.{_assetName}'"
         else:
             name = objRef["ObjectName"]
     else:
         name = objRef
-
-    if name in OBJECT_CACHE:
-        return OBJECT_CACHE[name]
     
 
     try:
         obj = ue.find_object(name)
     except:
-        pass
-
-    if obj is None:
-        try:
-            ue.load_object(name)
-            obj = ue.find_object(name)
-        except:
-            pass
-    
-    if obj is None:
         LoggingUtil.log(f"Failed to find {name}")
-        return None
+        
 
-    OBJECT_CACHE[name] = obj
     return obj
 
 def resolve_property_type(props):
