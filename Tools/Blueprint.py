@@ -31,7 +31,7 @@ def get_parent_components(fmodel : Tools.FModel.FModelJson):
     root = fmodel.get_first_of_key("Type", "BlueprintGeneratedClass")
     default_node = fmodel.get_first_of_key("Type", root["Name"])
     default_name = default_node["Name"]
-    defaults = default_node["Properties"]
+    defaults = default_node.get("Properties", {})
 
     def is_json_component(json_value):
         if not isinstance(json_value, dict): return False

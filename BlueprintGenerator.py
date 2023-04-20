@@ -21,7 +21,8 @@ import unreal_engine as ue
 LoggingUtil.reset()
 
 # JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\Gameplay\ToolSet\Items\Wand\BP_WandTool.json"
-JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\CustomContent\TestActor.json"
+# JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\CustomContent\TestActor.json"
+JSON_PATH = r"F:\HL\Phoenix-Jsons\Content\WWise\Ak_blueprints\BP_Audio_Actor.json"
 
 fmodel = FTools.FModelJson(JSON_PATH)
 
@@ -68,7 +69,7 @@ LoggingUtil.reset()
 bp.load_defaults()
 default_node = fmodel.get_first_of_key("Type", root["Name"])
 default_name = default_node["Name"]
-defaults = default_node["Properties"]
+defaults = default_node.get("Properties", {})
 
 allNotSet = []
 

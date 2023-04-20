@@ -275,7 +275,8 @@ def set_property(obj, key : str, json_value):
     wasSet = True
     if is_type_safe_to_create(baseType):
         v = create_from_type_str(baseType, json_value)
-        set_p(key, v)
+        if v is not None and baseType != "ObjectProperty":
+            set_p(key, v)
     elif baseType == "UScriptStruct":
         struct = get_p(key)
         set_struct_from_dict(struct, json_value)
