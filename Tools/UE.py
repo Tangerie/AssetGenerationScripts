@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Tuple
 import unreal_engine as ue
 from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
-from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType
+from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType, GameplayTag
 from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
 
 from enum import IntFlag
@@ -117,7 +117,7 @@ class FunctionFlags(IntFlag):
 [X] FloatProperty
 [X] DoubleProperty
 [X] ByteProperty
-[ ] EnumProperty
+[X] EnumProperty
 [X] StrProperty
 [X] TextProperty
 [X] NameProperty
@@ -140,9 +140,9 @@ class FunctionFlags(IntFlag):
 [ ] MulticastDelegateProperty
 [ ] DelegateProperty
 
-[ ] ArrayProperty
+[X] ArrayProperty
 [ ] MapProperty
-[ ] SetProperty
+[X] SetProperty
 '''
 
 # Types that are just set as their JSON value
@@ -180,6 +180,72 @@ def create_base_struct(structName, json_value):
         args = BASE_STRUCT_CONSTRUCTORS[structName](json_value)
         return getattr(ue, structName)(*args)
 
+def is_type_safe_to_create(typeStr):
+    return (
+        typeStr in SIMPLE_TYPES or
+        typeStr in BASE_STRUCT_CONSTRUCTORS or
+        typeStr in (
+            "ByteProperty",
+            "TextProperty",
+            "ObjectProperty",
+            "EnumProperty"
+        )
+    )
+
+# Only UScriptStructs cannot be created/set this way
+def create_from_type_str(baseType, json_value):
+    if baseType in SIMPLE_TYPES:
+        return json_value
+    elif baseType in BASE_STRUCT_CONSTRUCTORS:
+        LoggingUtil.log("Is Base Struct")
+        v = create_base_struct(baseType, json_value)
+        if v is not None:
+            return v
+        return None # Is this ok?
+    elif baseType == "ByteProperty" and isinstance(json_value, int):
+        return json_value
+    elif baseType == "TextProperty":
+        # TODO Set localization property
+        if "CultureInvariantString" in json_value:
+            return json_value["CultureInvariantString"]
+        else:
+            return json_value["SourceString"]
+    elif baseType == "ObjectProperty":
+        if json_value is None: return None
+        if "ObjectName" in json_value:
+            return find_object(json_value)
+        elif "AssetPathName" in json_value:
+            return find_object(json_value["AssetPathName"])
+        else:
+            return None
+    elif baseType == "EnumProperty":
+        if isinstance(json_value, str) and "::" in json_value:
+            enumClassName, enumValue = json_value.split("::")
+            enumClass = find_object(enumClassName)
+            if enumClass is None:
+                LoggingUtil.log("Failed to find enum")
+                return 0
+            else:
+                index = enumClass.enum_names().index(enumValue)
+                return index
+        else:
+            LoggingUtil.log("Unknown Enum Value")
+            return 0
+        
+def set_struct_from_dict(struct, json_value):
+    struct_type = struct.get_struct().get_name()
+    # FModel seralizes this one weird, need to convert to proper format
+    if struct_type == "GameplayTagContainer": 
+        json_value = {
+            "GameplayTags": [
+                {
+                    "TagName": x
+                } for x in json_value
+            ],
+        }
+    for field_name in struct.fields():
+        set_property(struct, field_name, json_value.get(field_name, None))
+
 def set_property(obj, key : str, json_value):
     isStruct = isinstance(obj, ue.UScriptStruct)
     if isStruct:
@@ -196,53 +262,43 @@ def set_property(obj, key : str, json_value):
     LoggingUtil.header(f"{key} [{typeStr}]")
 
     wasSet = True
-
-    if baseType in SIMPLE_TYPES:
-        set_p(key, json_value)
-    elif baseType in BASE_STRUCT_CONSTRUCTORS:
-        LoggingUtil.log("Is Base Struct")
-        v = create_base_struct(baseType, json_value)
-        if v is not None:
-            set_p(key, v)
-    elif baseType == "ByteProperty" and isinstance(json_value, int):
-        set_p(key, json_value)
-    elif baseType == "TextProperty":
-        # TODO Set localization property
-        if "CultureInvariantString" in json_value:
-            set_p(key, json_value["CultureInvariantString"])
-        else:
-            set_p(key, json_value["SourceString"])
-    elif baseType == "ObjectProperty":
-        if "ObjectName" in json_value:
-            set_p(
-                key,
-                find_object(json_value)
-            )
-        elif "AssetPathName" in json_value:
-            set_p(
-                key,
-                find_object(json_value["AssetPathName"])
-            )
-        else:
-            wasSet = False
+    if is_type_safe_to_create(baseType):
+        v = create_from_type_str(baseType, json_value)
+        set_p(key, v)
     elif baseType == "UScriptStruct":
         struct = get_p(key)
-        # Recursively set properties
-        for field_name in struct.fields():
-            set_property(struct, field_name, json_value.get(field_name, None))
-    elif baseType == "EnumProperty":
-        if isinstance(json_value, str) and "::" in json_value:
-            enumClassName, enumValue = json_value.split("::")
-            enumClass = find_object(enumClassName)
-            if enumClass is None:
-                LoggingUtil.log("Failed to find enum")
-                wasSet = False
-            else:
-                index = enumClass.enum_names().index(enumValue)
-                set_p(key, index)
+        set_struct_from_dict(struct, json_value)
+    elif baseType == "ArrayProperty":
+        innerType = typeStr.split("<")[-1][:-1]
+        LoggingUtil.log(f"Inner = {innerType}")
+        if is_type_safe_to_create(innerType):
+            LoggingUtil.log("Is Safe Type")
+            set_p(key, [
+                create_from_type_str(innerType, x) for x in json_value
+            ])
+        elif innerType == "UScriptStruct":
+            if json_value is not None:
+                fprop.set_length(obj, len(json_value))
+                for i, v in enumerate(json_value):
+                    set_struct_from_dict(fprop.get_at_index(obj, i), v)
         else:
-            LoggingUtil.log("Uknown Enum Value")
+            LoggingUtil.log("Unknown Inner Type")
             wasSet = False
+    elif baseType == "SetProperty":
+        innerType = typeStr.split("<")[-1][:-1]
+        LoggingUtil.log(f"Inner = {innerType}")
+        if is_type_safe_to_create(innerType):
+            LoggingUtil.log("Is Safe Type")
+            set_p(key, set(
+                create_from_type_str(innerType, x) for x in json_value
+            ))
+        else:
+            LoggingUtil.log("Unknown Inner Type")
+            wasSet = False
+    elif baseType == "MapProperty":
+        innerKeyType, innerValueType = typeStr[:-1].split("<")[-1].split(",")
+        LoggingUtil.log(f"Inner = ({innerKeyType} : {innerValueType})")
+        wasSet = False
     else:
         LoggingUtil.log("UNHANDELLED")
         wasSet = False
@@ -269,15 +325,26 @@ OBJECT_CACHE = {}
 
 def find_object(objRef):
     global OBJECT_CACHE
+    obj = None
+
     if isinstance(objRef, dict):
-        name = objRef["ObjectName"]
+        if "ObjectName" in objRef and "ObjectPath" in objRef:
+            _basePath = objRef["ObjectPath"].split(".")[0]
+            _assetName = objRef["ObjectName"].split("'")[1]
+            _assetType = objRef["ObjectName"].split("'")[0]
+            name = f"{_basePath}.{_assetName}"
+            try:
+                ue.load_object(ue.find_class(_assetType), name)
+            except:
+                pass
+        else:
+            name = objRef["ObjectName"]
     else:
         name = objRef
 
     if name in OBJECT_CACHE:
         return OBJECT_CACHE[name]
-
-    obj = None
+    
 
     try:
         obj = ue.find_object(name)

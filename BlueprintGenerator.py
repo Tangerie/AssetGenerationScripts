@@ -12,7 +12,7 @@ import Tools.Blueprint as BPGenerator
 importlib.reload(BPGenerator)
 
 import Tools.FModel
-importlib.reload(Tools.FModel)
+importlib.reload(Tools.FModel) 
 
 import Tools.UE as UETools
 importlib.reload(UETools)
@@ -29,11 +29,6 @@ fmodel = Tools.FModel.FModelJson(JSON_PATH)
 root = fmodel.get_first_of_key("Type", "BlueprintGeneratedClass")
 bp_path = root["ClassDefaultObject"]["ObjectPath"].split(".")[0]
 
-parent_clz = ue.find_class(root["SuperStruct"]["ObjectName"])
-
-# print(root["SuperStruct"]["ObjectName"])
-# print(parent_clz)
-# LoggingUtil.debug_members(parent_clz)
 
 bp = BPGenerator.BPGenerator(bp_path, fmodel)
 
