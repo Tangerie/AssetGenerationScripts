@@ -22,7 +22,7 @@ LoggingUtil.reset()
 
 # JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\Gameplay\ToolSet\Items\Wand\BP_WandTool.json"
 # JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\CustomContent\TestActor.json"
-JSON_PATH = r"F:\HL\Phoenix-Jsons\Content\WWise\Ak_blueprints\BP_Audio_Actor.json"
+JSON_PATH = r"F:\HL\Phoenix-Jsons\Content\Gameplay\ToolSet\Spells\AvadaKedavra\BP_AvadaKedavraSpell.json"
 
 fmodel = FTools.FModelJson(JSON_PATH)
 

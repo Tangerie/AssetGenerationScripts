@@ -235,7 +235,9 @@ def create_from_type_str(baseType, json_value):
                 LoggingUtil.log("Failed to find enum")
                 return 0
             else:
-                index = enumClass.enum_names().index(enumValue)
+                if enumValue in enumClass.enum_names():
+                    index = enumClass.enum_names().index(enumValue)
+                else: index = 0
                 return index
         else:
             LoggingUtil.log("Unknown Enum Value")
