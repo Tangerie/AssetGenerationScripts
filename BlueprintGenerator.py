@@ -11,8 +11,8 @@ importlib.reload(LoggingUtil)
 import Tools.Blueprint as BPGenerator
 importlib.reload(BPGenerator)
 
-import Tools.FModel
-importlib.reload(Tools.FModel) 
+import Tools.FModel as FTools
+importlib.reload(FTools) 
 
 import Tools.UE as UETools
 importlib.reload(UETools)
@@ -23,7 +23,7 @@ LoggingUtil.reset()
 # JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\Gameplay\ToolSet\Items\Wand\BP_WandTool.json"
 JSON_PATH = r"F:\FModel\Output\Exports\Phoenix\Content\CustomContent\TestActor.json"
 
-fmodel = Tools.FModel.FModelJson(JSON_PATH)
+fmodel = FTools.FModelJson(JSON_PATH)
 
 
 root = fmodel.get_first_of_key("Type", "BlueprintGeneratedClass")

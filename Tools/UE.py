@@ -8,6 +8,8 @@ from enum import IntFlag
 import json
 import LoggingUtil
 
+import Tools.FModel as FTools
+
 class PropertyFlags(IntFlag):
     CPF_None                              = 0x0,
     CPF_Edit                              = 0x0000000000000001,
@@ -134,14 +136,14 @@ class FunctionFlags(IntFlag):
 [X] FHitResult
 
 [X] UScriptStruct
-[ ] StructProperty
+[X] StructProperty
 
 [ ] WeakObjectProperty
 [ ] MulticastDelegateProperty
 [ ] DelegateProperty
 
 [X] ArrayProperty
-[ ] MapProperty
+[X] MapProperty
 [X] SetProperty
 '''
 
@@ -175,29 +177,34 @@ BASE_STRUCT_CONSTRUCTORS : Dict[str, Callable[[dict], tuple]] = {
     "FHitResult": lambda v: tuple() # No Init for FHitResult (Not editable in editor anyway)
 }
 
+SAFE_CREATE_TYPES = (
+    *SIMPLE_TYPES, 
+    *BASE_STRUCT_CONSTRUCTORS.keys(), 
+    "ByteProperty",
+    "TextProperty",
+    "ObjectProperty",
+    "EnumProperty"
+)
+
+def is_type_safe_to_create(typeStr): return typeStr in SAFE_CREATE_TYPES
+
 def create_base_struct(structName, json_value):
     if structName in BASE_STRUCT_CONSTRUCTORS:
         args = BASE_STRUCT_CONSTRUCTORS[structName](json_value)
         return getattr(ue, structName)(*args)
 
-def is_type_safe_to_create(typeStr):
-    return (
-        typeStr in SIMPLE_TYPES or
-        typeStr in BASE_STRUCT_CONSTRUCTORS or
-        typeStr in (
-            "ByteProperty",
-            "TextProperty",
-            "ObjectProperty",
-            "EnumProperty"
-        )
-    )
+def get_inner_type(typeStr : str):
+    inside = typeStr.split("<")[-1][:-1]
+    if "," in inside:
+        return inside.split(",")
+    else:
+        return inside
 
 # Only UScriptStructs cannot be created/set this way
 def create_from_type_str(baseType, json_value):
     if baseType in SIMPLE_TYPES:
         return json_value
     elif baseType in BASE_STRUCT_CONSTRUCTORS:
-        LoggingUtil.log("Is Base Struct")
         v = create_base_struct(baseType, json_value)
         if v is not None:
             return v
@@ -212,7 +219,9 @@ def create_from_type_str(baseType, json_value):
             return json_value["SourceString"]
     elif baseType == "ObjectProperty":
         if json_value is None: return None
-        if "ObjectName" in json_value:
+        elif isinstance(json_value, str):
+            return find_object(json_value)
+        elif "ObjectName" in json_value:
             return find_object(json_value)
         elif "AssetPathName" in json_value:
             return find_object(json_value["AssetPathName"])
@@ -247,14 +256,17 @@ def set_struct_from_dict(struct, json_value):
         set_property(struct, field_name, json_value.get(field_name, None))
 
 def fix_fmodel_dict(json_value : List[dict]):
-    out_dict = {}
+    if len(json_value) == 0: return json_value
 
-    for pair_dict in json_value:
-        pair_key = list(pair_dict.keys())[0]
-        pair_value = pair_dict[pair_key]
-        out_dict[pair_key] = pair_value
-
-    return out_dict
+    if FTools.is_dictionary_simple(json_value):
+        return [
+            {
+                "Key": list(item.keys())[0],
+                "Value": list(item.values())[0],
+            } for item in json_value
+        ]
+    else:
+        return json_value
 
 def set_property(obj, key : str, json_value):
     isStruct = isinstance(obj, ue.UScriptStruct)
@@ -279,10 +291,8 @@ def set_property(obj, key : str, json_value):
         struct = get_p(key)
         set_struct_from_dict(struct, json_value)
     elif baseType == "ArrayProperty":
-        innerType = typeStr.split("<")[-1][:-1]
-        LoggingUtil.log(f"Inner = {innerType}")
+        innerType = get_inner_type(typeStr)
         if is_type_safe_to_create(innerType):
-            LoggingUtil.log("Is Safe Type")
             set_p(key, [
                 create_from_type_str(innerType, x) for x in json_value
             ])
@@ -295,10 +305,8 @@ def set_property(obj, key : str, json_value):
             LoggingUtil.log("Unknown Inner Type")
             wasSet = False
     elif baseType == "SetProperty":
-        innerType = typeStr.split("<")[-1][:-1]
-        LoggingUtil.log(f"Inner = {innerType}")
+        innerType = get_inner_type(typeStr)
         if is_type_safe_to_create(innerType):
-            LoggingUtil.log("Is Safe Type")
             set_p(key, set(
                 create_from_type_str(innerType, x) for x in json_value
             ))
@@ -306,29 +314,21 @@ def set_property(obj, key : str, json_value):
             LoggingUtil.log("Unknown Inner Type")
             wasSet = False
     elif baseType == "MapProperty":
-        innerKeyType, innerValueType = typeStr[:-1].split("<")[-1].split(",")
-        LoggingUtil.log(f"Inner = ({innerKeyType} : {innerValueType})")
+        innerKeyType, innerValueType = get_inner_type(typeStr)
         if json_value is None: json_value = []
         fixed_dict = fix_fmodel_dict(json_value)
 
-        # Keys are safe as they can't be UScriptStructs
         if is_type_safe_to_create(innerValueType):
-            final_dict = {
-                create_from_type_str(innerKeyType, rawK): create_from_type_str(innerValueType, rawV) 
-                for rawK, rawV in fixed_dict.items()
-            }
-            set_p(key, final_dict)
-        elif innerValueType == "UScriptStruct":
-            key_to_object = {
-                rawK: create_from_type_str(innerKeyType, rawK) for rawK in fixed_dict.keys()
-            }
-            object_to_key = {
-                v: k for k, v in key_to_object.items()
-            }
-            for rawK in fixed_dict.keys():
-                fprop.add_key(obj, key_to_object[rawK])
-            for objK, structV in get_p(key).items():
-                set_struct_from_dict(structV, fixed_dict[object_to_key[objK]])
+            for item in fixed_dict:
+                fprop.add_key_value(
+                    obj, 
+                    create_from_type_str(innerKeyType, item["Key"]),
+                    create_from_type_str(innerValueType, item["Value"])
+                )
+        elif innerValueType == "UScriptStruct": 
+            for item in fixed_dict:
+                struct = fprop.add_key(obj, create_from_type_str(innerKeyType, item["Key"]))
+                set_struct_from_dict(struct, item["Value"])
         else:
             wasSet = False
     else:

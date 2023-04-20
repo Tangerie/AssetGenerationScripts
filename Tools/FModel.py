@@ -1,9 +1,10 @@
+from typing import List
+import json
+
 class FModelJson:
     __nodes : list
 
     def __init__(self, path : str):
-        import json
-
         with open(path, "r+") as fp:
             self.__nodes = json.load(fp)
 
@@ -31,3 +32,8 @@ class FModelJson:
 
     def filter(self, func): 
         return tuple(x for x in self.__nodes if func(x))
+
+# Is a dictionary { key: value } or { "key": ..., "value": ... }
+def is_dictionary_simple(items : List[dict]):
+    if len(items) == 0: return True
+    return len(items[0]) == 1
