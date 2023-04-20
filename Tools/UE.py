@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 import unreal_engine as ue
 from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
 from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType, GameplayTag
@@ -246,6 +246,16 @@ def set_struct_from_dict(struct, json_value):
     for field_name in struct.fields():
         set_property(struct, field_name, json_value.get(field_name, None))
 
+def fix_fmodel_dict(json_value : List[dict]):
+    out_dict = {}
+
+    for pair_dict in json_value:
+        pair_key = list(pair_dict.keys())[0]
+        pair_value = pair_dict[pair_key]
+        out_dict[pair_key] = pair_value
+
+    return out_dict
+
 def set_property(obj, key : str, json_value):
     isStruct = isinstance(obj, ue.UScriptStruct)
     if isStruct:
@@ -298,7 +308,29 @@ def set_property(obj, key : str, json_value):
     elif baseType == "MapProperty":
         innerKeyType, innerValueType = typeStr[:-1].split("<")[-1].split(",")
         LoggingUtil.log(f"Inner = ({innerKeyType} : {innerValueType})")
-        wasSet = False
+        if json_value is None: json_value = []
+        fixed_dict = fix_fmodel_dict(json_value)
+
+        # Keys are safe as they can't be UScriptStructs
+        if is_type_safe_to_create(innerValueType):
+            final_dict = {
+                create_from_type_str(innerKeyType, rawK): create_from_type_str(innerValueType, rawV) 
+                for rawK, rawV in fixed_dict.items()
+            }
+            set_p(key, final_dict)
+        elif innerValueType == "UScriptStruct":
+            key_to_object = {
+                rawK: create_from_type_str(innerKeyType, rawK) for rawK in fixed_dict.keys()
+            }
+            object_to_key = {
+                v: k for k, v in key_to_object.items()
+            }
+            for rawK in fixed_dict.keys():
+                fprop.add_key(obj, key_to_object[rawK])
+            for objK, structV in get_p(key).items():
+                set_struct_from_dict(structV, fixed_dict[object_to_key[objK]])
+        else:
+            wasSet = False
     else:
         LoggingUtil.log("UNHANDELLED")
         wasSet = False
