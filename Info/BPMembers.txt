@@ -450,13 +450,13 @@ world_rename_folder
 world_tick
 
 === Properties ===
-ParentClass = <unreal_engine.UObject 'WandTool' (0x0000020D44932C00) UClass 'Class' (refcnt: 3)>
+ParentClass = <unreal_engine.UObject 'WandTool' (0x00000280B50B5800) UClass 'Class' (refcnt: 3)>
 BlueprintType = 0
 bRecompileOnLoad = True
 bHasBeenRegenerated = True
 bIsRegeneratingOnLoad = False
 bBeingCompiled = False
-bIsNewlyCreated = True
+bIsNewlyCreated = False
 bForceFullEditor = False
 bQueuedForCompilation = False
 bRunConstructionScriptOnDrag = True
@@ -476,10 +476,10 @@ BlueprintNamespace =
 BlueprintCategory = 
 HideCategories = []
 BlueprintSystemVersion = 2
-SimpleConstructionScript = <unreal_engine.UObject 'SimpleConstructionScript_0' (0x0000020DED4409C0) UClass 'SimpleConstructionScript' (refcnt: 3)>
-UbergraphPages = [<unreal_engine.UObject object at 0x0000020D27AEB330>]
-FunctionGraphs = [<unreal_engine.UObject object at 0x0000020D438B6AB0>, <unreal_engine.UObject object at 0x0000020D43929F90>, <unreal_engine.UObject object at 0x0000020D438E3810>, <unreal_engine.UObject object at 0x0000020D438E3540>, <unreal_engine.UObject object at 0x0000020D27B3BE40>, <unreal_engine.UObject object at 0x0000020D78071D20>, <unreal_engine.UObject object at 0x0000020D780702A0>, <unreal_engine.UObject object at 0x0000020D78070300>, <unreal_engine.UObject object at 0x0000020D78070330>, <unreal_engine.UObject object at 0x0000020D780703F0>, <unreal_engine.UObject object at 0x0000020D78070450>, <unreal_engine.UObject object at 0x0000020D780704B0>, <unreal_engine.UObject object at 0x0000020D78070510>, <unreal_engine.UObject object at 0x0000020D78070570>, <unreal_engine.UObject object at 0x0000020D780705D0>, <unreal_engine.UObject object at 0x0000020D78070660>]
-DelegateSignatureGraphs = []
+SimpleConstructionScript = <unreal_engine.UObject 'SimpleConstructionScript_0' (0x00000281B43C1DE0) UClass 'SimpleConstructionScript' (refcnt: 3)>
+UbergraphPages = [<unreal_engine.UObject object at 0x00000280C28EC3F0>]
+FunctionGraphs = [<unreal_engine.UObject object at 0x00000280C28EC480>]
+DelegateSignatureGraphs = [<unreal_engine.UObject object at 0x00000280B4304660>]
 MacroGraphs = []
 IntermediateGeneratedGraphs = []
 EventGraphs = []
@@ -488,10 +488,10 @@ ComponentTemplates = []
 Timelines = []
 ComponentClassOverrides = []
 InheritableComponentHandler = None
-NewVariables = []
-CategorySorting = []
+NewVariables = [<unreal_engine.UScriptStruct object at 0x00000280C40BBF00>, <unreal_engine.UScriptStruct object at 0x00000280C40BBDB0>, <unreal_engine.UScriptStruct object at 0x00000280B4304030>, <unreal_engine.UScriptStruct object at 0x00000280B4304060>, <unreal_engine.UScriptStruct object at 0x00000280B4304090>, <unreal_engine.UScriptStruct object at 0x00000280B43040C0>, <unreal_engine.UScriptStruct object at 0x00000280B43040F0>, <unreal_engine.UScriptStruct object at 0x00000280B4304120>, <unreal_engine.UScriptStruct object at 0x00000280B4304150>, <unreal_engine.UScriptStruct object at 0x00000280B4304180>, <unreal_engine.UScriptStruct object at 0x00000280B43041B0>, <unreal_engine.UScriptStruct object at 0x00000280B43041E0>, <unreal_engine.UScriptStruct object at 0x00000280B4304210>, <unreal_engine.UScriptStruct object at 0x00000280B4304240>, <unreal_engine.UScriptStruct object at 0x00000280B4304270>, <unreal_engine.UScriptStruct object at 0x00000280B43042A0>, <unreal_engine.UScriptStruct object at 0x00000280B43042D0>, <unreal_engine.UScriptStruct object at 0x00000280B4304300>, <unreal_engine.UScriptStruct object at 0x00000280B4304330>, <unreal_engine.UScriptStruct object at 0x00000280B4304360>, <unreal_engine.UScriptStruct object at 0x00000280B43043C0>, <unreal_engine.UScriptStruct object at 0x00000280B43043F0>, <unreal_engine.UScriptStruct object at 0x00000280B4304420>, <unreal_engine.UScriptStruct object at 0x00000280B4304450>, <unreal_engine.UScriptStruct object at 0x00000280B4304480>, <unreal_engine.UScriptStruct object at 0x00000280B43044B0>, <unreal_engine.UScriptStruct object at 0x00000280B43044E0>, <unreal_engine.UScriptStruct object at 0x00000280B4304510>, <unreal_engine.UScriptStruct object at 0x00000280B4304540>, <unreal_engine.UScriptStruct object at 0x00000280B4304570>, <unreal_engine.UScriptStruct object at 0x00000280B43045A0>, <unreal_engine.UScriptStruct object at 0x00000280B43045D0>, <unreal_engine.UScriptStruct object at 0x00000280B4304600>, <unreal_engine.UScriptStruct object at 0x00000280B4304630>, <unreal_engine.UScriptStruct object at 0x00000280C4105600>]
+CategorySorting = ['Default', 'None']
 ImplementedInterfaces = []
-LastEditedDocuments = [<unreal_engine.UScriptStruct object at 0x0000020D27AEB360>, <unreal_engine.UScriptStruct object at 0x0000020D438C9360>, <unreal_engine.UScriptStruct object at 0x0000020D438C9F90>]
+LastEditedDocuments = [<unreal_engine.UScriptStruct object at 0x00000280C40BBF00>, <unreal_engine.UScriptStruct object at 0x00000280C40BBDB0>]
 Bookmarks = {}
 BookmarkNodes = []
 Breakpoints = []
@@ -500,14 +500,11 @@ DeprecatedPinWatches = []
 ComponentTemplateNameIndex = {}
 OldToNewComponentTemplateNames = {}
 Extensions = []
-ThumbnailInfo = <unreal_engine.UObject 'SceneThumbnailInfo_0' (0x0000020E0F364300) UClass 'SceneThumbnailInfo' (refcnt: 3)>
-CrcLastCompiledCDO = 1863459885
-CrcLastCompiledSignature = 2459835662
+ThumbnailInfo = <unreal_engine.UObject 'SceneThumbnailInfo_0' (0x00000281A7A74940) UClass 'SceneThumbnailInfo' (refcnt: 3)>
+CrcLastCompiledCDO = 3958246156
+CrcLastCompiledSignature = 3367344600
 OriginalClass = None
-SkeletonGeneratedClass = <unreal_engine.UObject 'SKEL_BP_WandTool_C' (0x0000020DEB578800) UClass 'BlueprintGeneratedClass' (refcnt: 3)>
-GeneratedClass = <unreal_engine.UObject 'BP_WandTool_C' (0x0000020DEB579600) UClass 'BlueprintGeneratedClass' (refcnt: 3)>
+SkeletonGeneratedClass = <unreal_engine.UObject 'SKEL_TestActor_C' (0x000002808D988100) UClass 'BlueprintGeneratedClass' (refcnt: 3)>
+GeneratedClass = <unreal_engine.UObject 'TestActor_C' (0x00000281764F4800) UClass 'BlueprintGeneratedClass' (refcnt: 3)>
 bLegacyNeedToPurgeSkelRefs = False
-BlueprintGuid = <unreal_engine.UScriptStruct {'struct': 'Guid', 'size': 16, 'ptr': 0x0000020DEB57A444}>
-
-
-DelegateSignatureGraphs = [<unreal_engine.UObject object at 0x000001F6F566AE40>]
+BlueprintGuid = <unreal_engine.UScriptStruct {'struct': 'Guid', 'size': 16, 'ptr': 0x00000281764F6B44}>

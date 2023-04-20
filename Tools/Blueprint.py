@@ -8,12 +8,53 @@ import Tools.FModel
 
 import LoggingUtil
 
+def get_generated_components(fmodel : Tools.FModel.FModelJson):
+    cmps = []
+    for scs_node in fmodel.get_all_of_key("Type", "SCS_Node"):
+        props = scs_node["Properties"]
+        if props["ComponentClass"]["ObjectName"] == "Class'SceneComponent'": continue
+        cmp_type = props["ComponentClass"]["ObjectName"][:-1].split("'")[-1]
+        var_name = props["InternalVariableName"]
+        prop_name = props["ComponentTemplate"]["ObjectName"].split(":")[-1][:-1]
+        cmps.append({
+            "Type": cmp_type,
+            "VarName": var_name,
+            "RealName": prop_name,
+            "Class": UETools.find_object(props["ComponentClass"])
+        })
+
+    return cmps
+
+
+def get_parent_components(fmodel : Tools.FModel.FModelJson):
+    cmps = []
+    root = fmodel.get_first_of_key("Type", "BlueprintGeneratedClass")
+    default_node = fmodel.get_first_of_key("Type", root["Name"])
+    default_name = default_node["Name"]
+    defaults = default_node["Properties"]
+
+    def is_json_component(json_value):
+        if not isinstance(json_value, dict): return False
+        if ("ObjectName" not in json_value) or ("ObjectPath" not in json_value): return False
+        return f"'{default_name}:" in json_value["ObjectName"]
+
+    for key in [k for k in defaults if is_json_component(defaults[k])]:
+        v = defaults[key]
+
+        cmps.append({
+            "VarName": v["ObjectName"].split(":")[-1][:-1],
+            "RealName": key,
+        })
+
+    return cmps
+
 class BPGenerator():
     path = ""
     bp : Blueprint = None
     default_object = None
     bp_vars = []
-    components = {}
+    generated_components = []
+    parent_components = []
 
     fmodel : Tools.FModel.FModelJson
 
@@ -25,19 +66,19 @@ class BPGenerator():
         except:
             self.bp = BlueprintFactory().factory_create_new(path)
 
-        self.__load_components()
+        self.generated_components = get_generated_components(self.fmodel)
+        self.parent_components = get_parent_components(self.fmodel)
         self.modify()
 
-    def __load_components(self):
-        for node in self.fmodel[lambda node: node.get("Type").endswith("Component") and "Class" in node]:
-            name = node["Name"]
-            isGenerated = name.endswith("_GEN_VARIABLE")
-            if isGenerated:
-                name = name[:-len("_GEN_VARIABLE")]
-            self.components[name] = {
-                "gen": isGenerated,
-                "class": UETools.find_object(node.get("Class"))
-            }
+    def is_var_component(self, var_name : str):
+        for cmp in self.generated_components:
+            if cmp["VarName"] == var_name: return True
+        return False
+
+    def is_real_var_parent_component(self, real_var_name : str):
+        for cmp in self.parent_components:
+            if cmp["RealName"] == real_var_name: return True
+        return False
 
     def modify(self):
         self.bp.modify()
@@ -73,8 +114,7 @@ class BPGenerator():
         for cmp in ue.get_blueprint_components(self.bp):
             ue.remove_component_from_blueprint(self.bp, cmp.get_name())
 
-        self.compile()
-        self.modify()
+        self.recompile()
 
     def apply_variables(self):
         self.bp.NewVariables = self.bp_vars
@@ -125,7 +165,6 @@ class BPGenerator():
         LoggingUtil.log("===")
 
     def add_function(self, node):
-        # LoggingUtil.header(f'[FUNCTION] {node["Name"]}')
         graph = ue.blueprint_add_function(self.bp, node["Name"])
         root = graph.Nodes[0]
 
@@ -134,7 +173,6 @@ class BPGenerator():
         if UETools.FunctionFlags.FUNC_HasOutParms in funcFlags:
             output = graph.graph_add_node(K2Node_FunctionResult, 300, 0)
 
-        # LoggingUtil.log(funcFlags)
         root.ExtraFlags = funcFlags
 
         for prop in node.get("ChildProperties", []):
@@ -144,12 +182,10 @@ class BPGenerator():
                 target = output if UETools.PropertyFlags.CPF_OutParm in flags else root
                 direction = EEdGraphPinDirection.EGPD_Output if UETools.PropertyFlags.CPF_OutParm in flags else EEdGraphPinDirection.EGPD_Input
                 target.node_create_pin(direction, UETools.create_pin_type(prop), prop["Name"])
-        # LoggingUtil.undent()
 
     def add_event(self, node):
         # Ignore Overrides
         if "SuperStruct" in node: return
-        LoggingUtil.header(f'[EVENT] {node["Name"]}')
 
         graph = self.bp.UberGraphPages[0]
         x, y = graph.graph_get_good_place_for_new_node()
@@ -164,7 +200,6 @@ class BPGenerator():
                     prop["Name"]
                 )
 
-        LoggingUtil.undent()
 
     # An event delegate is just a function but in its own graph in "DelegateSignatureGraphs"
     def add_event_delegate(self, node):
@@ -182,7 +217,7 @@ class BPGenerator():
     def add_var(self, var):
         if var.get("Name") in ["DefaultSceneRoot", "UberGraphFrame"]: return
         if var.get("Type") in ["MulticastInlineDelegateProperty"]: return
-        if var.get("Name") in self.components.keys(): return
+        if self.is_var_component(var.get("Name")): return
         varType = UETools.create_pin_type(var)
         self.bp_vars.append(BPVariableDescription(
             VarName=var["Name"],
@@ -199,10 +234,8 @@ class BPGenerator():
         self.apply_variables()
 
     def add_components(self):
-        for name, cmpInfo in self.components.items():
-            if not cmpInfo["gen"]: continue
-            if name == "DefaultSceneRoot": continue
-            ue.add_component_to_blueprint(self.bp, cmpInfo["class"], name)
+        for item in self.generated_components:
+            ue.add_component_to_blueprint(self.bp, item["Class"], item["VarName"])
 
 
     def load_defaults(self):
@@ -215,14 +248,39 @@ class BPGenerator():
     def set_default_value(self, key, json_value):
         if self.default_object is None: return True
         if key == "UberGraphFrame": return True
-        if key in self.components.keys(): return True
+        if self.is_real_var_parent_component(key): return True
         if key not in self.default_object.properties():
             LoggingUtil.log(f"ERROR: No matching key ({key}) in default")
             return True
-        # Components from parent
-        if isinstance(json_value, dict) and f"'Default__" in json_value.get("ObjectName", ""): return True
-        
+
         return UETools.set_property(self.default_object, key, json_value)
+
+    def get_components_node_names(self):
+        names = []
+        for node in self.generated_components:
+            names.append(node["RealName"])
+        for node in self.parent_components:
+            names.append(node["VarName"])
+        return names
+
+    def get_generated_component(self, name : str):
+        for cmp in ue.get_blueprint_components(self.bp):
+            if cmp.get_name() == name: return cmp
+        return None
+    
+    def get_component_by_node_name(self, name : str):
+        cmp = self.get_generated_component(name)
+        if cmp is not None: return cmp
+        for cmp in self.parent_components:
+            if cmp["VarName"] == name: return self.default_object.get_property(cmp["RealName"])
+        return None
+
+    def set_component_properties(self, name : str, props):
+        if props is None or len(props) == 0: return
+        cmp = self.get_component_by_node_name(name)
+        if cmp is None: return
+        for key, value in props.items():
+            UETools.set_property(cmp, key, value)
 
     def save_defaults(self):
         if self.default_object is None: return

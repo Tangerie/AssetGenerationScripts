@@ -66,7 +66,9 @@ LoggingUtil.reset()
 # bp.debug()
 
 bp.load_defaults()
-defaults = fmodel.get_first_of_key("Type", root["Name"])["Properties"]
+default_node = fmodel.get_first_of_key("Type", root["Name"])
+default_name = default_node["Name"]
+defaults = default_node["Properties"]
 
 allNotSet = []
 
@@ -76,9 +78,11 @@ for key in defaults:
     if not didSet: allNotSet.append(key)
 LoggingUtil.undent()
 
-print(allNotSet)
-
-# TODO Set properties in components
-
+for node_name in bp.get_components_node_names():
+    node = fmodel.get_first_of_key("Name", node_name)
+    if "Properties" in node:
+        LoggingUtil.header(f"Setting {node_name}")
+        bp.set_component_properties(node_name, node["Properties"])
+        LoggingUtil.undent()
 
 bp.save_defaults()

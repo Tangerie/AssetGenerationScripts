@@ -1,8 +1,8 @@
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Callable, Dict
 import unreal_engine as ue
-from unreal_engine.classes import BlueprintFactory, Blueprint, K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
-from unreal_engine.structs import EdGraphPinType, BPVariableDescription, EdGraphTerminalType, GameplayTag
-from unreal_engine.enums import EEdGraphPinDirection, EPinContainerType
+from unreal_engine.classes import K2Node_FunctionResult, K2Node_Event, K2Node_CustomEvent
+from unreal_engine.structs import EdGraphPinType, EdGraphTerminalType
+from unreal_engine.enums import EPinContainerType
 
 from enum import IntFlag
 import json
@@ -253,20 +253,9 @@ def set_struct_from_dict(struct, json_value):
             ],
         }
     for field_name in struct.fields():
-        set_property(struct, field_name, json_value.get(field_name, None))
+        if field_name in json_value:
+            set_property(struct, field_name, json_value.get(field_name))
 
-def fix_fmodel_dict(json_value : List[dict]):
-    if len(json_value) == 0: return json_value
-
-    if FTools.is_dictionary_simple(json_value):
-        return [
-            {
-                "Key": list(item.keys())[0],
-                "Value": list(item.values())[0],
-            } for item in json_value
-        ]
-    else:
-        return json_value
 
 def set_property(obj, key : str, json_value):
     isStruct = isinstance(obj, ue.UScriptStruct)
@@ -316,7 +305,7 @@ def set_property(obj, key : str, json_value):
     elif baseType == "MapProperty":
         innerKeyType, innerValueType = get_inner_type(typeStr)
         if json_value is None: json_value = []
-        fixed_dict = fix_fmodel_dict(json_value)
+        fixed_dict = FTools.normalize_dictionary(json_value)
 
         if is_type_safe_to_create(innerValueType):
             for item in fixed_dict:

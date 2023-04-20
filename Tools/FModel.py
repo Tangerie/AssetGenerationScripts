@@ -37,3 +37,15 @@ class FModelJson:
 def is_dictionary_simple(items : List[dict]):
     if len(items) == 0: return True
     return len(items[0]) == 1
+
+def normalize_dictionary(json_value : List[dict]) -> List[dict]:
+    if len(json_value) == 0: return json_value
+    if is_dictionary_simple(json_value):
+        return [
+            {
+                "Key": list(item.keys())[0],
+                "Value": list(item.values())[0],
+            } for item in json_value
+        ]
+    else:
+        return json_value
