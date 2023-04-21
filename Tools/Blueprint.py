@@ -240,10 +240,13 @@ class BPGenerator():
 
     def load_defaults(self):
         generated_class = self.bp.GeneratedClass
+        print("DEFAULTS")
+        print(generated_class)
         self.default_object = ue.load_object(
             generated_class,
             self.path + ".Default__" + generated_class.get_name()
         )
+        print(self.default_object)
 
     def set_default_value(self, key, json_value):
         if self.default_object is None: return True

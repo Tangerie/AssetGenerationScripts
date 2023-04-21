@@ -87,3 +87,5 @@ for node_name in bp.get_components_node_names():
         LoggingUtil.undent()
 
 bp.save_defaults()
+
+# print(ue.find_object("/Game/Gameplay/ToolSet/Spells/AvadaKedavra/BP_AvadaKedavraSpell.BP_AvadaKedavraSpell_C"))

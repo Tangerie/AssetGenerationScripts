@@ -353,20 +353,11 @@ def find_object(objRef):
             _basePath = objRef["ObjectPath"].split(".")[0]
             _assetName = objRef["ObjectName"].split("'")[1]
             _assetType = objRef["ObjectName"].split("'")[0]
-            _varName = None
-            if ":" in _assetName:
-                _assetName, _varName = _assetName.split(":")
             name = f"{_basePath}.{_assetName}"
             try:
-                tmp = ue.load_object(ue.find_class(_assetType), name)
-                if tmp is not None:
-                    if _varName is not None:
-                        return tmp.get_property(_varName)
-                    return tmp
+                return ue.load_object(ue.find_class(_assetType), name)
             except:
-                _assetName = objRef["ObjectName"].split("'")[1]
-                LoggingUtil.log(f"Failed to load {name}")
-                name = f"{_assetType}'{_basePath}.{_assetName}'"
+                pass
         else:
             name = objRef["ObjectName"]
     else:
@@ -374,12 +365,16 @@ def find_object(objRef):
     
 
     try:
-        obj = ue.find_object(name)
+        return ue.find_object(name)
     except:
+        pass
+
+    if obj is None:
         LoggingUtil.log(f"Failed to find {name}")
-        
+        return None
 
     return obj
+
 
 def resolve_property_type(props):
     kwargs = {}
